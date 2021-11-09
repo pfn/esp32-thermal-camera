@@ -11,6 +11,8 @@
 #include "Font.h"
 #include "bilinear.h"
 
+#define BACKLIGHT_PIN 2
+#define POWER_PIN 25
 #define BUTTON_U 23
 #define BUTTON_D 19
 #define BUTTON_L 18
@@ -310,6 +312,7 @@ void render_frames(void *arg) {
       top_scale_canvas.pushSprite(0, 0);
       bot_scale_canvas.pushSprite(0, 124);
   
+      digitalWrite(BACKLIGHT_PIN, HIGH);
     }
     last = now;
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -426,8 +429,9 @@ void IRAM_ATTR button_handler(void *arg) {
 }
 
 void setup() {
-  pinMode(2, OUTPUT);
-  digitalWrite(2, HIGH);
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+  pinMode(POWER_PIN, OUTPUT);
+  digitalWrite(POWER_PIN, LOW);
   pinMode(BUTTON_U, INPUT_PULLUP);
   pinMode(BUTTON_D, INPUT_PULLUP);
   pinMode(BUTTON_L, INPUT_PULLUP);
