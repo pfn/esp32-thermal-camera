@@ -42,6 +42,8 @@
 
 #define SENSOR_PIXELS 768
 
+#define IDLE_TIMEOUT 300000
+
 static float mlx90640To[SENSOR_PIXELS];
 
 std::vector<uint16_t> selected_reticles;
@@ -69,6 +71,7 @@ StaticSemaphore_t frame_sync_buffer;
 volatile float tr;
 volatile uint32_t frame_grabber_time = 0;
 volatile bool frame_error = false;
+volatile uint32_t last_activity;
 
 #define TEMP_RANGES 5
 volatile bool is_F;
@@ -288,7 +291,7 @@ void process_frames(void *arg) {
 void render_frames(void *arg) {
   TickType_t xFrequency = pdMS_TO_TICKS(1000 / 24);
   uint8_t spinner_counter = 0;
-  uint32_t last = millis();
+  uint32_t last = last_activity = millis();
 
   for (int i = 0; i < 104; ++i) {
     tft.drawLine(8, i + 20, 24, i + 20, pm3d_scale[map(103 - i, 0, 103, 0, SCALE_MAX)]);
@@ -303,10 +306,15 @@ void render_frames(void *arg) {
 
       bottom_canvas.setFreeFont();
       bottom_canvas.setCursor(0, 88);
-      if (now - last > 0 && frame_grabber_time > 0)
-        bottom_canvas.printf("%c %-3.1f %-3.1f %s",
-          spinner[spinner_counter = (spinner_counter + 1) % 4], 1000.0 / (now - last), 1000.0 / frame_grabber_time,
+      if (now - last > 0 && frame_grabber_time > 0) {
+        uint16_t until_sleep = max(0u, (IDLE_TIMEOUT - (now - last_activity)) / 1000);
+        bottom_canvas.printf("%c %-3.1f %-3.1f %-3d %s",
+          spinner[spinner_counter = (spinner_counter + 1) % 4],
+          1000.0 / (now - last),
+          1000.0 / frame_grabber_time,
+          until_sleep,
           frame_error ? "???" : "");
+      }
 
       bottom_canvas.pushSprite(0, 6 * 24);
       top_scale_canvas.pushSprite(0, 0);
@@ -316,6 +324,10 @@ void render_frames(void *arg) {
     }
     last = now;
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
+
+    if (now - last_activity > IDLE_TIMEOUT) {
+      digitalWrite(POWER_PIN, LOW);
+    }
   }
 }
 
@@ -345,7 +357,8 @@ void IRAM_ATTR button_handler(void *arg) {
   static bool chord_A = false;
   static bool chord_B = false;
   static uint32_t last = 0;
-  if (millis() - last < DEBOUNCE_TIME) {
+  last_activity = millis();
+  if (last_activity - last < DEBOUNCE_TIME) {
     return;
   }
   last = millis();
@@ -387,6 +400,7 @@ void IRAM_ATTR button_handler(void *arg) {
       if (!chord_A) {
         if (!digitalRead(BUTTON_B)) {
           tft.fillScreen(0);
+          digitalWrite(POWER_PIN, LOW);
           ESP.restart();
         } else {
           is_F = !is_F;
@@ -431,7 +445,7 @@ void IRAM_ATTR button_handler(void *arg) {
 void setup() {
   pinMode(BACKLIGHT_PIN, OUTPUT);
   pinMode(POWER_PIN, OUTPUT);
-  digitalWrite(POWER_PIN, LOW);
+  digitalWrite(POWER_PIN, HIGH);
   pinMode(BUTTON_U, INPUT_PULLUP);
   pinMode(BUTTON_D, INPUT_PULLUP);
   pinMode(BUTTON_L, INPUT_PULLUP);
