@@ -166,6 +166,18 @@ float average(float *buf, uint8_t size) {
   return sum / i;
 }
 
+void draw_bitmap(TFT_eSprite &canvas, uint8_t x, uint8_t y,
+  const uint8_t *bitmap, uint8_t w, uint8_t h,
+  const uint16_t *colors, uint8_t colors_sz) {
+  for (uint8_t i = 0; i < w * h; ++i) {
+    uint8_t bx = i % w;
+    uint8_t by = i / w;
+    if (bitmap[i] < colors_sz) {
+      canvas.drawPixel(x + bx, y + by, colors[bitmap[i]]);
+    }
+  }
+}
+
 void process_frames(void *arg) {
   const uint8_t window_sz = FRAME_FREQ / 2;
   uint8_t window_i = 0;
@@ -224,6 +236,12 @@ void process_frames(void *arg) {
         reticle_windows[i][window_i] = (i <= selected_reticles.size()) ? frame[selected_reticles[i - 1]] : NAN;
       }
       window_i = (window_i + 1) % window_sz;
+
+      const uint16_t colors[] = { 0xffff, 0x0000 };
+      draw_bitmap(canvas16, (31 - (min_pt % 32)) * 6, (min_pt / 32) * 6,
+        snowflake, 7, 7, colors, 2);
+      draw_bitmap(canvas16, (31 - (max_pt % 32)) * 6, (max_pt / 32) * 6,
+        sun, 7, 7, colors, 2);
 
       min_temp = average(min_temp_window, window_sz);
       max_temp = average(max_temp_window, window_sz);
