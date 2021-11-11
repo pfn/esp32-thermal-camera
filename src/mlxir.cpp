@@ -318,6 +318,7 @@ void render_frames(void *arg) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   uint32_t value;
   for (;;) {
+    uint32_t last_act = last_activity; // save copy because it can change during rendering
     uint32_t now = millis();
     if (xTaskNotifyWait(0, 0, &value, xFrequency)) {
       canvas16.pushSprite(240 - 6 * 32, 0);
@@ -325,7 +326,7 @@ void render_frames(void *arg) {
       bottom_canvas.setFreeFont();
       bottom_canvas.setCursor(0, 88);
       if (now - last > 0 && frame_grabber_time > 0) {
-        uint16_t until_sleep = max(0u, (IDLE_TIMEOUT - (now - last_activity)) / 1000);
+        uint16_t until_sleep = max(0u, (IDLE_TIMEOUT - (now - last_act)) / 1000);
         bottom_canvas.printf("%c %-3.1f %-3.1f %-3d %s",
           spinner[spinner_counter = (spinner_counter + 1) % 4],
           1000.0 / (now - last),
@@ -343,7 +344,8 @@ void render_frames(void *arg) {
     last = now;
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
-    if (now - last_activity > IDLE_TIMEOUT) {
+    if (now - last_act > IDLE_TIMEOUT) {
+      Serial.println("Shutting down, timeout");
       digitalWrite(POWER_PIN, LOW);
     }
   }
@@ -418,6 +420,7 @@ void IRAM_ATTR button_handler(void *arg) {
       if (!chord_A) {
         if (!digitalRead(BUTTON_B)) {
           tft.fillScreen(0);
+          Serial.println("Shutting down, B+A");
           digitalWrite(POWER_PIN, LOW);
           ESP.restart();
         } else {
@@ -461,9 +464,10 @@ void IRAM_ATTR button_handler(void *arg) {
 }
 
 void setup() {
-  pinMode(BACKLIGHT_PIN, OUTPUT);
   pinMode(POWER_PIN, OUTPUT);
   digitalWrite(POWER_PIN, HIGH);
+  pinMode(BACKLIGHT_PIN, OUTPUT);
+
   pinMode(BUTTON_U, INPUT_PULLUP);
   pinMode(BUTTON_D, INPUT_PULLUP);
   pinMode(BUTTON_L, INPUT_PULLUP);
