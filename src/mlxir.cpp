@@ -372,7 +372,7 @@ bool is_connected() {
   return Wire.endTransmission() == 0;
 }
 
-#define DEBOUNCE_TIME 100
+#define DEBOUNCE_TIME 150
 void IRAM_ATTR button_handler(void *arg) {
   static bool chord_A = false;
   static bool chord_B = false;
@@ -525,8 +525,8 @@ void setup() {
   xSemaphoreGive(frame_sync);
   xSemaphoreGive(render_sync);
   xTaskCreatePinnedToCore(frame_grabber, "FrameGrabber", 3500, NULL, 2, &framegrabber_task, 1);
-  xTaskCreatePinnedToCore(process_frames, "FrameCalculator", 7000, NULL, 2, &processor_task, 1);
-  xTaskCreatePinnedToCore(render_frames, "RenderTask", 4000, NULL, 2, &render_task, 1);
+  xTaskCreatePinnedToCore(process_frames, "FrameCalculator", 7500, NULL, 2, &processor_task, 1);
+  xTaskCreatePinnedToCore(render_frames, "RenderTask", 2000, NULL, 2, &render_task, 1);
 }
 
 void loop() {
